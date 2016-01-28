@@ -16,3 +16,10 @@ and run like - if you do not care about coincidences -
 
 convDat("run001.dat",0)
 
+
+
+**convWav.C** ... conversion of wav format created by gregory using V1724 data.
+
+
+**n42totxt.C** ... conversion of n42 format of MC2. *simplexml* code must be installed.
+
