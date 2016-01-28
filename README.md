@@ -6,7 +6,7 @@ here are **root** scripts to convert V1724 and DT5780 data:
 
 First parameter is filename
 
-Second parameter is 0/1 :  0=do not sort the file before;  1=sort the file before
+Second parameter is 0/1 :  0=do not sort the file before;  1=sort the file before (in case of coincidences processing)
 
 For a good performance, load with
 
