@@ -3,10 +3,17 @@
 //simplexml -v RadInstrumentData/RadMeasurement/Spectrum/ChannelData  20160121-bg001.n42 | sed ':a;N;$!ba;s/\n/ /g'  |  tr " " "\n" > z.dat
 
 
+
+#include "TFile.h"
+#include "TTree.h"
+#include "TH1F.h"
+#include "TH2F.h"
+
+
 int getvalue(const char *ch, const char *ext){
   int i=0;
   char ba[500],name[500];
-  sprintf(name, "%s%s", ch, ext );
+  sprintf(name, ".%s%s", ch, ext );
   FILE* temf=fopen( name ,"r");
   if (temf!=NULL){  fread( ba, 1, sizeof(ba), temf ); fclose(temf);}
   i=atoi( ba);
@@ -17,7 +24,7 @@ int getvalue(const char *ch, const char *ext){
 float getreal(const char *ch, const char *ext){
   float i=0;
   char ba[500],name[500];
-  sprintf(name, "%s%s", ch, ext );
+  sprintf(name, ".%s%s", ch, ext );
   FILE* temf=fopen( name ,"r");
   if (temf!=NULL){  fread( ba, 1, sizeof(ba), temf ); fclose(temf);}
   i=atof( ba);
@@ -27,7 +34,7 @@ float getreal(const char *ch, const char *ext){
 const char* getchar(const char *ch, const char *ext){
   char name[500];
   char *ba=new char[100];
-  sprintf(name, "%s%s", ch, ext );
+  sprintf(name, ".%s%s", ch, ext );
   FILE* temf=fopen( name ,"r");
   if (temf!=NULL){  fread( ba, 1, 100, temf ); fclose(temf);}
   printf("BA: %s\n", ba);
@@ -39,7 +46,7 @@ const char* getchar(const char *ch, const char *ext){
 //============================================================================
 //============================================================================
 
-void n42totxt(const char* fname){
+int n42totxt(const char* fname){
   TH1F* h=new TH1F("n42","title", 16000,0,16000);
   TString oneline, title=fname, token;
   int MAXLINES=64000;
@@ -48,32 +55,32 @@ void n42totxt(const char* fname){
 //======================================Conversion to cmd
   char cmd[500], newname[500], basename[500], newtitle[500];
   //  sprintf(cmd, "simplexml -v RadInstrumentData/RadMeasurement/Spectrum/ChannelData  20160121-bg001.n42 | sed ':a;N;$!ba;s/\n/ /g'  |  tr \" \" \"\n\" > z.dat", fname);
-  sprintf( cmd, "basename -z  %s .n42 | tr \"\\n\" \" \" > BASENAME", fname );
+  sprintf( cmd, "basename -z  %s .n42 | tr \"\\n\" \" \" > .BASENAME", fname );
   //  printf("%s\n", cmd );
   system(cmd);
-  FILE* temf=fopen("BASENAME","r");
+  FILE* temf=fopen(".BASENAME","r");
   if (temf!=NULL){  fread( basename, 1, sizeof(basename), temf ); fclose(temf);}
 
   // calib
-  sprintf(cmd, "/usr/bin/simplexml -v RadInstrumentData/EnergyCalibration/CoefficientValues %s | cut -d \" \" -f 2 > %s.cal1 ", fname, basename );
+  sprintf(cmd, "/usr/bin/simplexml -v RadInstrumentData/EnergyCalibration/CoefficientValues %s | cut -d \" \" -f 2 > .%s.cal1 ", fname, basename );
   //  printf( "%s\n", cmd );
   system(cmd);
-  sprintf(cmd, "/usr/bin/simplexml -v RadInstrumentData/EnergyCalibration/CoefficientValues %s | cut -d \" \" -f 1 > %s.cal0 ", fname, basename );
+  sprintf(cmd, "/usr/bin/simplexml -v RadInstrumentData/EnergyCalibration/CoefficientValues %s | cut -d \" \" -f 1 > .%s.cal0 ", fname, basename );
   //  printf( "%s\n", cmd );
   system(cmd);
 
 
   // realtime
-  sprintf(cmd, "/usr/bin/simplexml -v RadInstrumentData/RadMeasurement/RealTimeDuration %s | cut -b 8-9 > %s.durD ", fname, basename );
+  sprintf(cmd, "/usr/bin/simplexml -v RadInstrumentData/RadMeasurement/RealTimeDuration %s | cut -b 8-9 > .%s.durD ", fname, basename );
   system(cmd);
 
-  sprintf(cmd, "/usr/bin/simplexml -v RadInstrumentData/RadMeasurement/RealTimeDuration %s | cut -b 12-13 > %s.durH ", fname, basename );
+  sprintf(cmd, "/usr/bin/simplexml -v RadInstrumentData/RadMeasurement/RealTimeDuration %s | cut -b 12-13 > .%s.durH ", fname, basename );
   system(cmd);
 
-  sprintf(cmd, "/usr/bin/simplexml -v RadInstrumentData/RadMeasurement/RealTimeDuration %s | cut -b 15-16 > %s.durM ", fname, basename );
+  sprintf(cmd, "/usr/bin/simplexml -v RadInstrumentData/RadMeasurement/RealTimeDuration %s | cut -b 15-16 > .%s.durM ", fname, basename );
   system(cmd);
 
-  sprintf(cmd, "/usr/bin/simplexml -v RadInstrumentData/RadMeasurement/RealTimeDuration %s | cut -b 18-19 > %s.durS ", fname, basename );
+  sprintf(cmd, "/usr/bin/simplexml -v RadInstrumentData/RadMeasurement/RealTimeDuration %s | cut -b 18-19 > .%s.durS ", fname, basename );
   system(cmd);
   int totalsec=  getvalue(basename,".durD")*24*3600+
   getvalue(basename,".durH")*3600 +
@@ -83,16 +90,16 @@ void n42totxt(const char* fname){
 
 
     // livetime
-  sprintf(cmd, "/usr/bin/simplexml -v RadInstrumentData/RadMeasurement/Spectrum/LiveTimeDuration %s | cut -b 8-9 > %s.livD ", fname, basename );
+  sprintf(cmd, "/usr/bin/simplexml -v RadInstrumentData/RadMeasurement/Spectrum/LiveTimeDuration %s | cut -b 8-9 > .%s.livD ", fname, basename );
   system(cmd);
 
-  sprintf(cmd, "/usr/bin/simplexml -v RadInstrumentData/RadMeasurement/Spectrum/LiveTimeDuration %s | cut -b 12-13 > %s.livH ", fname, basename );
+  sprintf(cmd, "/usr/bin/simplexml -v RadInstrumentData/RadMeasurement/Spectrum/LiveTimeDuration %s | cut -b 12-13 > .%s.livH ", fname, basename );
   system(cmd);
 
-  sprintf(cmd, "/usr/bin/simplexml -v RadInstrumentData/RadMeasurement/Spectrum/LiveTimeDuration %s | cut -b 15-16 > %s.livM ", fname, basename );
+  sprintf(cmd, "/usr/bin/simplexml -v RadInstrumentData/RadMeasurement/Spectrum/LiveTimeDuration %s | cut -b 15-16 > .%s.livM ", fname, basename );
   system(cmd);
 
-  sprintf(cmd, "/usr/bin/simplexml -v RadInstrumentData/RadMeasurement/Spectrum/LiveTimeDuration %s | cut -b 18-19 > %s.livS ", fname, basename );
+  sprintf(cmd, "/usr/bin/simplexml -v RadInstrumentData/RadMeasurement/Spectrum/LiveTimeDuration %s | cut -b 18-19 > .%s.livS ", fname, basename );
   system(cmd);
   int livesec=  getvalue(basename,".livD")*24*3600+
   getvalue(basename,".livH")*3600 +
@@ -102,11 +109,13 @@ void n42totxt(const char* fname){
 
   
 
+  printf("START TIME:\n%s","");
 
   // START TIME
-  sprintf(cmd, "/usr/bin/simplexml -v RadInstrumentData/RadMeasurement/StartDateTime %s > %s.start ", fname, basename );
+  sprintf(cmd, "/usr/bin/simplexml -v RadInstrumentData/RadMeasurement/StartDateTime %s  | tr \"\\n\" \" \"  > .%s.start ", fname, basename );
   system(cmd);
 
+  printf("moving to  /dat/  section\n%s","");
 
 
      // DATA ITSELF ===================================================
@@ -116,9 +125,11 @@ void n42totxt(const char* fname){
   sprintf( newtitle, "%s  %.2f%% DT  cal: %.4f,%.4f", getchar(basename,".start") ,  100.0*(totalsec-livesec)/totalsec,   getreal(basename,".cal1"),  getreal(basename,".cal0")  );
   h->SetTitle( newtitle );
 
+  printf("exctracting  /dat/  section ... histogram title=%s\n",  newtitle);
   sprintf(cmd, "/usr/bin/simplexml -v RadInstrumentData/RadMeasurement/Spectrum/ChannelData %s | tr \"\\n\" \" \"   |  tr \" \" \"\\n\" > %s ", fname, newname );
   //  printf( "%s\n", cmd );
   system(cmd);
+  printf("  /dat/  section exctracted, oppening\n%s","");
   
   FILE * pFile;
   pFile=fopen( newname  ,"r" ); 
@@ -131,8 +142,10 @@ void n42totxt(const char* fname){
   int lastlen;// remove spaces
   while ((i<MAXLINES)&&( feof(pFile)==0) ){ 
     if ( oneline.Gets (pFile, kTRUE) ){//chop true ---------
-      /*
-      do {
+      while ( ( feof(pFile)==0)&&(oneline.Length()<1) ){
+	oneline.Gets (pFile, kTRUE) ;
+      }
+      /*      do {
 	lastlen=oneline.Length();
           if (oneline.Index(" ")==0){oneline=oneline(1,oneline.Length()-1);}
       lastlen=oneline.Length();
@@ -142,8 +155,10 @@ void n42totxt(const char* fname){
        oneline.ReplaceAll("  "," ");
        oneline.ReplaceAll("  "," ");
       }while( lastlen!=oneline.Length());
-      */      
+      */
+      
       if (i<10)printf("%d  %s\n", i, oneline.Data() );
+      if ((i%1000)==0)printf("%d  %s\n", i, oneline.Data() );
       for (int j=0;j<oneline.Atoi();j++){
 	//	h->SetBinContent( i ,  oneline.Atof()  );
 	h->Fill(  i  );
@@ -152,6 +167,7 @@ void n42totxt(const char* fname){
     }// if gets ------------------------------------------
     
   }// while end
+  printf("  /while/  section ended\n%s","");
 
   h->Draw();
   h->Print();

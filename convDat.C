@@ -168,7 +168,7 @@ int convDat( const char* filename, int sortme=1 ){
       
       while ( (line[0]=='#')||(line[0]=='H') ){
 	if (line[0]=='#'){ printf("changed to Gregory format \n",""); FORMAT=1;}
-	if (line[0]=='H'){ printf("changed to Caen mc2 format\n%s","");FORMAT=0;}
+	if (line[0]=='H'){ printf("changed to Caen mc2 format\n%s","");chan=0;FORMAT=0;}
 	fgets( line, 300, f );
 	// printf("%s\n", "comment line # or H");
       }
@@ -183,6 +183,7 @@ int convDat( const char* filename, int sortme=1 ){
 
       if (FORMAT==0)//  CAEN
 	sscanf( line , "%lld %d %d %d", &event.time, &energy, &test );
+
       if (FORMAT==1)// GREGORY	
 	sscanf( line , "%lld %d %d %d", &event.time, &energy, &test, &chan );  
 
@@ -209,7 +210,7 @@ int convDat( const char* filename, int sortme=1 ){
       //      sscanf( line , "%lld %d %d %d", &event.time, &test2, &event.ene, &test );   //test2=ch; run0002
       //       event.ch=2;
       if (linenow<=5){
-       printf("%14lld %5d  /%d/  chan=%d \n",event.time,event.ene,test,chan );
+       printf("time=%14lld  ene=%5d  test=/%d/  chan=%d \n",event.time,event.ene,test,chan );
        linenow++;
       }
 
