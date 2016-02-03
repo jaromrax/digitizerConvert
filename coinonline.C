@@ -87,9 +87,13 @@ MyCoinc::MyCoinc(int ch0,int ch1){
   OC1=new OneChan(ch1);
   char ss[100];
   sprintf(ss,"coin_%d_%d", ch0,ch1);
-  bidim=new TH2F(ss,ss,500,0,5000,500,0,5000);
+  bidim=new TH2F(ss,ss,500,0,5000,500,0,5000);  // the 1st BIDIM = coincidences
   sprintf(ss,"coindt_%d_%d", ch0,ch1);
   hidt=new TH1F(ss,ss,WIN*2+1,-WIN,WIN);
+
+  sprintf(ss,"fitcoin_%d_%d", ch0,ch1);
+  fitbidim=new TH2F(ss,ss,500,0,2000,500,0,2000);  // the 2st BIDIM = coincidences
+
 }
 
 
@@ -121,6 +125,9 @@ int MyCoinc::add(int ch,unsigned long long int t,int val,
   int found=0;
   unsigned long long int t1,t0, dt;
   ch1last=0;ch0last=0;dtlast=0;
+  ch1flast=0;ch1slast=0;
+  ch0flast=0;ch0slast=0;
+
   if (ch==0){
     // search in ch==1 first
     for (i=0;i<OC1->getmax();i++){
@@ -129,6 +136,7 @@ int MyCoinc::add(int ch,unsigned long long int t,int val,
       if ( dt<WIN){
 	if (DEBUG>=1){printf("%lld ~ %lld from ch=%d\n", t, t1, 1);}
 	bidim->Fill( OC1->getv(i) ,val); totalsum++;
+	fitbidim->Fill( OC1->getvf(i) , vefit);// totalsum++;
 	ch1last=OC1->getv(i);ch0last=val;
 	ch1flast=OC1->getvf(i);ch0flast=vefit;
 	ch1slast=OC1->getvs(i);ch0slast=vs;
@@ -151,9 +159,10 @@ int MyCoinc::add(int ch,unsigned long long int t,int val,
       if ( dt<WIN){
 	if (DEBUG>=1){printf("%lld ~ %lld from ch=%d\n", t, t0, 1);}
 	bidim->Fill(val, OC0->getv(i));totalsum++;
+	fitbidim->Fill(vefit, OC0->getvf(i)); // fit
 	ch1last=val;ch0last=OC0->getv(i);
-	ch1flast=vefit;ch0flast=OC1->getvf(i);
-	ch1slast=vs;ch0slast=OC1->getvs(i);
+	ch1flast=vefit;ch0flast=OC0->getvf(i);
+	ch1slast=vs;ch0slast=OC0->getvs(i);
 
 	
 	dtlast=dt*sig;
@@ -189,6 +198,9 @@ int MyCoinc::print(){
 
 TH2F* MyCoinc::getbidim(){
     return bidim;
+}
+TH2F* MyCoinc::getfitbidim(){
+    return fitbidim;
 }
 TH1F* MyCoinc::gethidt(){
     return hidt;

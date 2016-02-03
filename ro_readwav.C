@@ -65,6 +65,10 @@ for( int i = index->GetN() - 1; i >=0 ; --i ) {
      return fitval* penalty;
    } //--------------------------DEFINITION END --------------
 
+
+
+
+
 //########################################
 //########     FIT - WRAP FUNCTION
 //########################################
@@ -74,22 +78,26 @@ double* fit1( int max, TH1F *k1, char *OPT){
   int csini1,csini2,csini3;
   int i;
   int newmax=max;
-  // prepare initial value for amplitude by averaging:
-  //  for (i=250;i<250+105;i++){avgend=avgend+k1->GetBinContent(i);}
-  //  avgend=avgend/(105.);
-  avgend=k1->GetMaximum();
+  //  prepare initial values for the fit: bad values==bad fit
+  avgend=k1->GetMaximum();  // get maximum of the sample
   
-  //now look for 1st avgend/2 value
+  // go through and BREAK when signal rises above Maximum/2.
+  //          ... find the range for averaging
   csini1=50; csini2=105;
   for (i=0;i<max;i++){
     if (k1->GetBinContent(i) < avgend/5.){ csini1=i;}
     if (k1->GetBinContent(i) > avgend/2.){ csini2=i;break;}
   }
   
-  newmax=csini2+ (csini2-csini1)+100;
+  newmax=csini2+ (csini2-csini1)+100;  // this looks like /slope/ 
   //  printf("new maximum =%d\n", newmax );
-  TF1 *func1 = new TF1("fit1", fitf1, 0, 1.0*newmax,  3); //3 params
-  //k1->GetBinContent(0),  k1->GetBinContent(max) 
+  //                   name,   formula/function,  xmin,  xmax, nparams
+  //  TF1 *func1 = new TF1("fit1", fitf1,   0, 1.0*newmax,  3); //3 params
+
+  // i want short range of  fit  .... use "R" .... 3 x slope???
+  TF1 *func1 = new TF1("fit1", fitf1,   0., csini2+3*(csini2-csini1),  3); //3 params
+
+  //                     xpoint_at_rise, slope, maximum
   func1->SetParameters(   csini1, csini2+ (csini2-csini1) , avgend);
   //  func1->FixParameter( 2, avgend );
   //  func1->SetParameters(  avgend , 80,120 );
@@ -115,6 +123,7 @@ double* fit1( int max, TH1F *k1, char *OPT){
    if (gPad!=NULL){
          k1->SetStats(kFALSE);  gPad->Modified(); gPad->Update();
    }
+   //   sleep(1);
   return d;
 }//........................................
 
@@ -147,7 +156,10 @@ double* fit1( int max, TH1F *k1, char *OPT){
  *
  *   without fit=  361770/2 sec.     1568 seconds
  ***********************************************************/
-void ro_readwav(char* fname , int start=0, int stop=0, char *OPT="WWN0Q", char *clerun="run"){
+//                     DOFF do fit fft   1=fit   2=fft+fit
+//   fit cointains: baselineshift; fft; 
+//
+void ro_readwav(char* fname , int start=0, int stop=0, int DOFF=0,char *OPT="WWN0Q", char *clerun="run"){
 
   FILE *f;
   int i,j=0;
@@ -179,7 +191,7 @@ void ro_readwav(char* fname , int start=0, int stop=0, char *OPT="WWN0Q", char *
 
 
   
-  TH1F *h; // WAVE HISTOGRAM
+  TH1F *h; // WAVE HISTOGRAM ============ MAIN HISTOGRAM
   
   char hname[20];   // histo channels
   int result;    
@@ -204,7 +216,7 @@ void ro_readwav(char* fname , int start=0, int stop=0, char *OPT="WWN0Q", char *
       Float_t efit;  //F    energy from fit
       Float_t xi;    //F    Xi2 from  fit
       Float_t s;     //F    s - slope from fit
-                     //-------------------COINC from NOW
+     //-------------------COINCIDENCES from NOW -----------
       Int_t e0;      // COINC CASE    E0
       Int_t e1;      // COINC CASE    E0
       Int_t dt;      //I   +-
@@ -228,7 +240,7 @@ void ro_readwav(char* fname , int start=0, int stop=0, char *OPT="WWN0Q", char *
     to->Branch("coin",&event.e0,"e0/i:e1/i:dt/I:efit0/I:efit1/I:s0/I:s1/I");
 
 
-    MyCoinc *mc=new MyCoinc(0,1);
+    MyCoinc *mc=new MyCoinc(0,1);  // guard channels  0 + 1 
 //
     //
     //
@@ -243,9 +255,13 @@ void ro_readwav(char* fname , int start=0, int stop=0, char *OPT="WWN0Q", char *
     event.n=j;
     event.e=0;
     event.efit=0;
-    event.xi=0.0;
-    event.s=0.0;
+    event.xi=0;
+    event.s=0;
 
+    event.efit0=0;
+    event.efit1=0;
+    event.s0=0;
+    event.s1=0;
 
     // ch  t 
     
@@ -308,25 +324,31 @@ void ro_readwav(char* fname , int start=0, int stop=0, char *OPT="WWN0Q", char *
     // ============ FIT / ANALYZE ================
     int makefit=0;
     if ((j>=start)&&(j<stop) ){ makefit=1;}
+
     
+    if (DOFF==0){ makefit=0;} //no reason, but ok
     if (makefit==1){
       //====CREATE HISTOGRAM wave ==>>> VARIANT:create/analyze/root it/delete
-      sprintf(hname,"wave_%06d", j); // here I keep the channel
-      h=new TH1F( hname,hname, ssample[0],0,ssample[0] );
+      //      if (j-start<100){
+	sprintf(hname,"wave_%06d", j); // here I keep the channel
+	h=new TH1F( hname,hname, ssample[0],0,ssample[0] );
+     //      }// create only when #<100;  then REUSE "h"
+
       //====== prepare ZERO (one analyze parameter now)
       avg=0.0;
       for (i=0;i<50;i++){avg=avg+buffer[i];}
       avg=avg/(50.);
 
 
-      // ### ======= Fill SHIFTED TO ZERO histogram
+      // HISTOGRAM IS FILLED  HERE:
+      // ### ======= Fill SHIFTED buffer TO ZERO histogram
       for (i=0;i<ssample[0];i++){    // i add ch 0/1 to the end!
 	h->SetBinContent( i+1, buffer[i] - avg ); // 0-1 is #1
       }
 
       // ### FFT HERE //
+      if (DOFF==2){  //====================++FFT BEGIN =============
       int n=ssample[0];
-      if (1 == 1){
 	TH1 *hmsm =0;
 	TH1 *hpsm =0;
 	hmsm=h->FFT(hmsm,"MAG");
@@ -353,7 +375,7 @@ void ro_readwav(char* fname , int start=0, int stop=0, char *OPT="WWN0Q", char *
 	  re_full[j]=hmsm->GetBinContent(j);
 	  im_full[j]=hpsm->GetBinContent(j);
 	}
-	TVirtualFFT *fft_back = TVirtualFFT::FFT(1, &n, "C2R M K");
+ 	TVirtualFFT *fft_back = TVirtualFFT::FFT(1, &n, "C2R M K");
 	fft_back->SetPointsComplex(re_full,im_full);
 	fft_back->Transform();
 	TH1 *hb = 0;
@@ -378,14 +400,17 @@ void ro_readwav(char* fname , int start=0, int stop=0, char *OPT="WWN0Q", char *
 	//	sleep(1);
 	//	h->Draw(); gPad->Modified(); gPad->Update();
 
-      }// ========== FFT HERE  END
+      }// ========================================= FFT HERE  END
+
+
+
       
-      // ### ===========     fit 1 
+      // ### ===========     fit 1 ==========
       pars=fit1( ssample[0],  h , OPT ); // FIT 400 points in a sample
       printf("%06d/ %6.1f %5.2f    %5.2f  \n", j, pars[0], pars[1] ,pars[2]  );
       if ( bidim[ch]==NULL ){
 	sprintf(hname,"bishape_%02d", ch);
-	bidim[ch]=new TH2F( hname,"shapes;Energy;slope in channels", 2500,0,2500,240,2,25);
+	bidim[ch]=new TH2F( hname,"shapes;Energy;slope in channels", 2500,0,2500,450,2,45);
       }
       bidim[ch]->Fill( pars[0], pars[1] );
       //      sleep(1);
@@ -408,18 +433,30 @@ void ro_readwav(char* fname , int start=0, int stop=0, char *OPT="WWN0Q", char *
       hchf[ch]->Fill( pars[0] );
 
       event.efit=pars[0];
-      event.s=pars[1];
-      event.xi=pars[2];
-      if ( strcmp(OPT,"WWN0Q")==0){ delete h;}else{h->Write();} //write to tree if not N0Q
-    } // fit
-    // =========== FIT / ANALYZE  END  ================
-
+      event.s=10*pars[1];
+      event.xi=10*pars[2];
+      if ( strstr(OPT,"WWN0Q")!=NULL)  {
+	delete h;
+	//       	printf("%s %s\n","...DELEING histogram ", OPT);
+      }else{
+	h->Write();
+	printf("%s","...writing histogram to file\n");
+      } //write to tree if not N0Q
+    } // fit ---------------------------------------------END--
+   // =========== FIT / ANALYZE  ============= END  ===========
+    if ( event.efit>16000){
+      event.efit=0;
+      event.s=0;
+      event.xi=0;
+    }
 
     event.e0=0;
     event.e1=0;
     event.dt=0;
-    
-    //=================COINCIDENCES ==========push
+
+
+    //=================COINCIDENCES ========== BEGIN ======
+    //  and if result == 1 : coincidence was found....
     if (1==mc->add( ch, event.t, event.e, event.efit, event.xi,event.s) ){
                                     // event.efit
       event.e0=mc->getlastC0();
@@ -432,8 +469,7 @@ void ro_readwav(char* fname , int start=0, int stop=0, char *OPT="WWN0Q", char *
       if ( (event.dt>400)||(event.dt<-400)){
 	printf("%4d mc ============================\n", event.dt);
       }
-    }
-    //=================COINCIDENCES END ==========
+    } //============================ COINCIDENCES END =====
     
 
 
@@ -474,9 +510,11 @@ void ro_readwav(char* fname , int start=0, int stop=0, char *OPT="WWN0Q", char *
     //  ede->Write();
     // ttree:=====================
     //    mc->print();
-    TH2F* mcbi=(TH2F*) mc->getbidim();
+    TH2F* mcbi=(TH2F*) mc->getbidim();  // this is coincidences stored in [mc]
+    TH2F* mcbifi=(TH2F*) mc->getfitbidim();  // this is fit coincidences stored in [mc]
     TH1F* mchidt=(TH1F*) mc->gethidt();
     mcbi->Write();
+    mcbifi->Write();
     mchidt->Write();
  
     to->Print();
